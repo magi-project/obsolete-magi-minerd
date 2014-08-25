@@ -237,7 +237,7 @@ public:
             unsigned int nTime;
             unsigned int nBits;
             unsigned int nNonce;
-	    unsigned char pchPadding[48];
+	    unsigned char Padding[48];
 };
 #pragma pack(pop)
 
