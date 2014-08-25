@@ -139,16 +139,24 @@ inline uint256 Hash7(hash_context &h, const T1 pbegin, const T1 pend)
     for(int i=0; i < 7; i++){
 	mpz_mul(h.product,h.product,h.bns[i]);
     }
-
+    
+//    gmp_printf ("Prod: %Zx\n", h.product);
+//	      char *tmp = mpz_get_str(NULL,16,h.product);
+//    printf("\n%s\n", tmp);
+    
     int bytes = mpz_sizeinbase(h.product, 256);
-    mpz_export(h.data, NULL, -1, 1, 0, 0, h.product);
+    char *bdata = (char*)malloc(bytes);
+    mpz_export(bdata, NULL, -1, 1, 0, 0, h.product);
+//    mpz_export(h.data, NULL, -1, 1, 0, 0, h.product);
 
     //Free the memory
 
     sph_sha256_init(&h.ctx_sha256);
     // ZSHA256;
-    sph_sha256 (&h.ctx_sha256, h.data,bytes);
+//    sph_sha256 (&h.ctx_sha256, h.data,bytes);
+    sph_sha256 (&h.ctx_sha256, bdata, bytes);
     sph_sha256_close(&h.ctx_sha256, static_cast<void*>(&finalhash));
+    free(bdata);
 
     return finalhash;
 }

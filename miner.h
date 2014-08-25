@@ -135,6 +135,15 @@ static inline void swap256(void *dest_p, const void *src_p)
 	dest[7] = src[0];
 }
 
+static inline void be32enc(void *pp, uint32_t x)
+{
+	uint8_t *p = (uint8_t *)pp;
+	p[3] = x & 0xff;
+	p[2] = (x >> 8) & 0xff;
+	p[1] = (x >> 16) & 0xff;
+	p[0] = (x >> 24) & 0xff;
+}
+
 extern bool opt_debug;
 extern bool opt_protocol;
 extern const uint32_t sha256_init_state[];
@@ -194,6 +203,7 @@ extern int longpoll_thr_id;
 extern struct work_restart *work_restart;
 
 extern void applog(int prio, const char *fmt, ...);
+extern void applog2(int prio, const char *fmt, ...);
 extern struct thread_q *tq_new(void);
 extern void tq_free(struct thread_q *tq);
 extern bool tq_push(struct thread_q *tq, void *data);

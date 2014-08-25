@@ -95,6 +95,43 @@ void applog(int prio, const char *fmt, ...)
 	va_end(ap);
 }
 
+void applog2(int prio, const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+
+#ifdef HAVE_SYSLOG_H
+	if (use_syslog) {
+		vsyslog(prio, fmt, ap);
+	}
+#else
+	if (0) {}
+#endif
+	else {
+		char *f;
+		int len;
+		struct timeval tv = { };
+		struct tm tm, *tm_p;
+
+		gettimeofday(&tv, NULL);
+
+		pthread_mutex_lock(&time_lock);
+		time_t tv_sec = tv.tv_sec;
+		tm_p = localtime(&tv_sec);
+		memcpy(&tm, tm_p, sizeof(tm));
+		pthread_mutex_unlock(&time_lock);
+
+		len = strlen(fmt) + 13;
+		f = alloca(len);
+		sprintf(f, "%s",
+			fmt);
+		vfprintf(stderr, f, ap);	/* atomic write to stderr */
+	}
+	va_end(ap);
+}
+
+
 static void databuf_free(struct data_buffer *db)
 {
 	if (!db)

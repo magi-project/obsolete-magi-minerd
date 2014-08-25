@@ -11,6 +11,8 @@
 #include "cpuminer-config.h"
 #define _GNU_SOURCE
 
+#include <iostream>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -35,7 +37,7 @@ extern "C" {
 #include "hashblock.h"
 
 #define PROGRAM_NAME		"minerd"
-#define DEF_RPC_URL		"http://127.0.0.1:8252/"
+#define DEF_RPC_URL		"http://127.0.0.1:8232/"
 #define DEF_RPC_USERNAME	"rpcuser"
 #define DEF_RPC_PASSWORD	"rpcpass"
 #define DEF_RPC_USERPASS	DEF_RPC_USERNAME ":" DEF_RPC_PASSWORD
@@ -130,6 +132,7 @@ static int work_thr_id;
 int longpoll_thr_id;
 struct work_restart *work_restart = NULL;
 pthread_mutex_t time_lock;
+uint32_t en_work[32];
 
 char *scratchpad;
 
@@ -228,13 +231,13 @@ public:
     //!!!!!!!!!!! struct must be in packed order even though serialize order is version first
     //or else we can't use hash macros, could also use #pragma pack but that has 
     //terrible implicatation on non-x86
-    uint256 hashPrevBlock;
-    uint256 hashMerkleRoot;
-    uint256 hashAccountRoot;
-    uint64_t nTime;
-    uint64_t nHeight;
-    uint64_t nNonce;
-    uint16_t nVersion;
+            int nVersion;
+            uint256 hashPrevBlock;
+            uint256 hashMerkleRoot;
+            unsigned int nTime;
+            unsigned int nBits;
+            unsigned int nNonce;
+	    unsigned char pchPadding[48];
 };
 #pragma pack(pop)
 
@@ -243,10 +246,56 @@ struct work {
 	uint256	target,hash;
 };
 
+struct cwork {
+	uint32_t data[32];
+	uint32_t target[8];
+};
+
+
+inline uint32_t ByteReverse(uint32_t value)
+{
+    value = ((value & 0xFF00FF00) >> 8) | ((value & 0x00FF00FF) << 8);
+    return (value<<16) | (value>>16);
+}
+
+
+template<typename T>
+std::string HexStr(const T itbegin, const T itend, bool fSpaces=false)
+{
+    std::string rv;
+    static const char hexmap[16] = { '0', '1', '2', '3', '4', '5', '6', '7',
+                                     '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
+    rv.reserve((itend-itbegin)*3);
+    for(T it = itbegin; it < itend; ++it)
+    {
+        unsigned char val = (unsigned char)(*it);
+        if(fSpaces && it != itbegin)
+            rv.push_back(' ');
+        rv.push_back(hexmap[val>>4]);
+        rv.push_back(hexmap[val&15]);
+    }
+
+    return rv;
+}
+
+void print_work(struct work *work, char * s)
+{
+printf("********************************** %s ***********************************\n", s);
+printf("nVersion:       %i\n",  work->data.nVersion);
+printf("hashPrevBlock:  %s\n",  work->data.hashPrevBlock.GetHex().c_str());
+printf("hashMerkleRoot: %s\n",  work->data.hashMerkleRoot.GetHex().c_str());
+printf("nTime:          %i\n",  work->data.nTime);
+printf("nBits:          %i\n",  work->data.nBits);
+printf("nNonce:         %i\n",  work->data.nNonce);
+printf("hashtarget:     %s\n",  work->target.GetHex().c_str());
+printf("--------------------------------------------------------------------------------\n");
+}
+
 static bool jobj_binary(const json_t *obj, const char *key,
 			void *buf, size_t buflen)
 {
 	const char *hexstr;
+//	unsigned char cbuf[128];
 	json_t *tmp;
 
 	tmp = json_object_get(obj, key);
@@ -265,9 +314,37 @@ static bool jobj_binary(const json_t *obj, const char *key,
 	return true;
 }
 
+inline void get_work_en(struct work *work, struct cwork *cwork)
+{
+    for (int i=0; i < 32; i++)
+	be32enc(&en_work[i], ((uint32_t*)cwork->data)[i]);
+    memcpy(&work->data.nVersion, en_work, 4);	// nversion
+    memcpy(&work->data.nVersion+1, en_work+1, 32);	// hashPrevBlock
+    memcpy(&work->data.nVersion+9, en_work+9, 32);	// hashMerkleRoot
+    memcpy(&work->data.nVersion+17, en_work+17, 4);	// nTime
+    memcpy(&work->data.nVersion+18, en_work+18, 4);	// nBits
+    memcpy(&work->data.nVersion+19, en_work+19, 4);	// nNonce
+}
+
+inline void submit_work_en(struct work *work)
+{
+    for (int i=0; i < 32; i++)
+	be32enc(&en_work[i], en_work[i]);
+    memcpy(&work->data.nVersion, en_work, 4);	// nversion
+    memcpy(&work->data.nVersion+1, en_work+1, 32);	// hashPrevBlock
+    memcpy(&work->data.nVersion+9, en_work+9, 32);	// hashMerkleRoot
+    memcpy(&work->data.nVersion+17, en_work+17, 4);	// nTime
+    memcpy(&work->data.nVersion+18, en_work+18, 4);	// nBits
+    memcpy(&work->data.nVersion+19, en_work+19, 4);	// nNonce
+}
+
 static bool work_decode(const json_t *val, struct work *work)
 {
-	if (unlikely(!jobj_binary(val, "data", &work->data, sizeof(work->data)))) {
+  struct cwork b_work;
+  struct cwork *cwork=&b_work;
+    
+	if (unlikely(!jobj_binary(val, "data", &cwork->data, sizeof(cwork->data)))) {
+//	if (unlikely(!jobj_binary(val, "data", &work->data, sizeof(work->data)))) {
 		printf("%ld\n", sizeof(work->data));
 		applog(LOG_ERR, "JSON inval data");
 		goto err_out;
@@ -277,6 +354,9 @@ static bool work_decode(const json_t *val, struct work *work)
 		applog(LOG_ERR, "JSON inval target");
 		goto err_out;
 	}
+
+	get_work_en(work, cwork);
+	if (opt_debug) print_work(work, "Get work");
 
 	work->hash = 0;
 	return true;
@@ -291,6 +371,9 @@ static bool submit_upstream_work(CURL *curl, struct work *work)
 	json_t *val, *res, *err;
 	char s[345];
 	bool rc = false;
+
+	if (opt_debug) print_work(work, "Submit work");
+	submit_work_en(work);
 
         //work->data.nHeight++;
 
@@ -477,7 +560,7 @@ static void hashmeter(int thr_id, const struct timeval *diff, unsigned long hash
 	secs = (double)diff->tv_sec + ((double)diff->tv_usec / 1000000.0);
 	if (!opt_quiet)
 		// applog(LOG_INFO, "thread %d: %.3f hash/min", thr_id, hashes * 60 / secs);
-		applog(LOG_INFO, "thread %d: %.3f hash/sec", thr_id, hashes_done / secs);
+		applog(LOG_INFO, "thread %d: %.2f khash/s", thr_id, hashes_done / secs / 1000);
 }
 
 static bool get_work(struct thr_info *thr, struct work *work)
@@ -554,12 +637,14 @@ bool scanhash(int thr_id, CBlockHeader *header, uint256 target, uint32_t max_non
 	while (1) {
 		header->nNonce = original_nonce + (((uint64_t)thr_id) << 24) + ((uint64_t)opt_extranonce << 32) + n++;
 		//printf("%d %lX\n", opt_extranonce, header->nNonce);
-		uint256 hash = Hash7(ctx,BEGIN(header->hashPrevBlock), END(header->nVersion));
+		uint256 hash = Hash7(ctx,BEGIN(header->nVersion), END(header->nNonce));
 
 		stat_ctr += 1;
 		bool found = hash < target;
 		if (found) {
-			applog(LOG_INFO, "Found share ...%s: submitting", hash.GetHex().c_str());
+		memcpy(en_work+19, &header->nNonce, 4);	// nNonce
+		applog(LOG_INFO, "Found share  ...%s: submitting", hash.GetHex().c_str());
+		printf("           Target hash: ...%s\n", target.GetHex().c_str());
 			*hashes_done = stat_ctr;
 			return true;
 		} 
@@ -609,6 +694,7 @@ static void *miner_thread(void *userdata)
 		gettimeofday(&tv_start, NULL);
 
 		rc = scanhash(thr_id, &work.data, work.target, max_nonce, &hashes_done);
+
 
 		/* record scanhash elapsed time */
 		gettimeofday(&tv_end, NULL);
