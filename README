@@ -1,35 +1,29 @@
 
-This is a multi-threaded CPU miner for M7/Cryptonite
-
-Success is not guaranteed here. It mines blocks on testnet. Can be problems with
-all threads maybe mining same nonce, overload of daemon. Anything.
-
+This is a multi-threaded CPU miner for M7/Magi (XMG).
 
 YOU MUST SET THE EXTRANONCE PARAMETER IN THE CONF FILE TO BE ABLE TO MINE
 WITH MULTIPLE MACHINES CONNECTED TO A SINGLE DAEMON. SEE exmaple-cfg.json
 A DIFFERENT NONCE IS REQUIRED FOR **EACH** MINER
 
-Your daemon should be 14072918 or better. 
-
-
 License: GPLv2.  See COPYING for details.
 
 Dependencies:
 	libcurl			http://curl.haxx.se/libcurl/
+	libgmp			http://gmplib.org/
 	openssl			http://www.openssl.org/
 	jansson			http://www.digip.org/jansson/
-		(jansson is optional, and is included in-tree)
+	(jansson is optional, and is included in-tree)
 
 Ubuntu / Debian:
 	sudo apt-get install build-essential autoconf libcurl4-openssl-dev
 
 Basic *nix or MinGW64 build instructions:
-	./autogen.sh	# only needed if building from git repo
+	./autogen.sh		# only needed if building from git repo
 	CFLAGS="-O3 -march=native -mtune=native" CXXFLAGS="-O3 -march=native -mtune=native" ./configure
 	make
 
 Usage instructions:  
-	Run "minerd --help" to see options. 
+	Run "minerd --help" to see options
 
 Solo mining:
 	./minerd --url http://127.0.0.1:RPCPORT/ --user RPCUSER --pass RPCPASSWORD --threads 2
