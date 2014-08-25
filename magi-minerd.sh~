@@ -1,0 +1,1 @@
+./minerd -a m7 -o http://127.0.0.1:8232 -u rpcuser -p rpcpass -t 1

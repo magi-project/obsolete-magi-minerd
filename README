@@ -30,3 +30,5 @@ Solo mining:
 
 Pool mining:
 	./minerd --url http://work.mmcpool.com/ --user MMCADDRESS --threads 2
+	
+Scrypts: magi-minerd.sh, magi-minerd.bat; change rpcport, rpc user and pass accordinly. 
