@@ -637,7 +637,7 @@ bool scanhash(int thr_id, CBlockHeader *header, uint256 target, uint32_t max_non
 	while (1) {
 		header->nNonce = original_nonce + (((uint64_t)thr_id) << 24) + ((uint64_t)opt_extranonce << 32) + n++;
 		//printf("%d %lX\n", opt_extranonce, header->nNonce);
-		uint256 hash = Hash7(ctx,BEGIN(header->nVersion), END(header->nNonce));
+		uint256 hash = hash_M7M(ctx,BEGIN(header->nVersion), END(header->nNonce), header->nNonce);
 
 		stat_ctr += 1;
 		bool found = hash < target;
@@ -1063,7 +1063,7 @@ int main (int argc, char *argv[])
 	}
 
 	applog(LOG_INFO, "%d miner threads started, "
-		"using M7 Proof-of-Work algorithm.",
+		"using M7M Proof-of-Work algorithm.",
 		opt_n_threads);
 
 	/* main loop - simply wait for workio thread to exit */

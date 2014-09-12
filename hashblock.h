@@ -22,6 +22,10 @@
 #define GLOBAL extern
 #endif
 
+extern "C"{
+    extern double __spectral_weight_m_MOD_sw(int *, int *);
+}
+
 GLOBAL sph_sha256_context     z_sha256;
 GLOBAL sph_sha512_context     z_sha512;
 GLOBAL sph_keccak512_context  z_keccak;
@@ -58,30 +62,29 @@ struct hash_context {
     sph_haval256_5_context   ctx_haval;
     sph_tiger_context        ctx_tiger;
     sph_ripemd160_context    ctx_ripemd;
-    mpz_t bns[7];
+    mpz_t bns[8];
     mpz_t product;
     char data[4096];
 };
 
 void HashInit(hash_context &h){
-    for(int i=0; i < 7; i++){
+    for(int i=0; i < 8; i++){
 	mpz_init(h.bns[i]);
     }
     mpz_init(h.product);
 }
 
 
+#define SW_DIVS 2
 template<typename T1>
-inline uint256 Hash7(hash_context &h, const T1 pbegin, const T1 pend)
+inline uint256 hash_M7M(hash_context &h, const T1 pbegin, const T1 pend, const unsigned int nnNonce)
 {
     static unsigned char pblank[1];
+    int bytes;
+    char *bdata;
+    int sw_Divs = SW_DIVS, nnNonce2 = (int)nnNonce/2;
 
-#ifndef QT_NO_DEBUG
-    //std::string strhash;
-    //strhash = "";
-#endif
-    
-    uint512 hash[7];
+    uint512 hash[8];
     uint256 finalhash;
     for(int i=0; i < 7; i++)
 	hash[i] = 0;
@@ -119,33 +122,79 @@ inline uint256 Hash7(hash_context &h, const T1 pbegin, const T1 pend)
     sph_tiger (&h.ctx_tiger, ptr, sz);
     sph_tiger_close(&h.ctx_tiger, static_cast<void*>(&hash[5]));
 
-#if 1
     sph_ripemd160_init(&h.ctx_ripemd);
     // ZRIPEMD;
     sph_ripemd160 (&h.ctx_ripemd, ptr, sz);
     sph_ripemd160_close(&h.ctx_ripemd, static_cast<void*>(&hash[6]));
 
     //printf("%s\n", hash[6].GetHex().c_str());
-#endif
+
+    hash[7] = hash[0];
+    for(int i=1; i < 7; i++)
+	hash[7] += hash[i];
 
     //Take care of zeros and load gmp
-    for(int i=0; i < 7; i++){
+    for(int i=0; i < 8; i++){
 	if(hash[i]==0)
 	    hash[i] = 1;
-	mpz_set_uint512(h.bns[i],hash[i]);
+	mpz_set_uint512(h.bns[i], hash[i]);
     }
  
     mpz_set_ui(h.product,1);
     for(int i=0; i < 7; i++){
 	mpz_mul(h.product,h.product,h.bns[i]);
     }
+
+    double rsw;
+    rsw = __spectral_weight_m_MOD_sw(&nnNonce2, &sw_Divs);
+    if (rsw < 1.) rsw = 1.01;
+    mpz_t dSpectralWeight;
+    mpz_init_set_d (dSpectralWeight, rsw);
+
+    mpz_mul(dSpectralWeight, dSpectralWeight, h.bns[7]);
+    if (mpz_sgn(dSpectralWeight) <= 0) mpz_set_ui(dSpectralWeight,1);
+
+mpz_cdiv_q (h.product, h.product, dSpectralWeight);
+    if (mpz_sgn(h.product) <= 0) mpz_set_ui(h.product,1);
+
+    bytes = mpz_sizeinbase(h.product, 256);
+    bdata = (char*)malloc(bytes);
+    mpz_export(bdata, NULL, -1, 1, 0, 0, h.product);
+
+    sph_sha256_init(&h.ctx_sha256);
+    // ZSHA256;
+//    sph_sha256 (&h.ctx_sha256, h.data,bytes);
+    sph_sha256 (&h.ctx_sha256, bdata, bytes);
+    sph_sha256_close(&h.ctx_sha256, static_cast<void*>(&finalhash));
+    free(bdata);
+
+    if(finalhash==0) finalhash = 1;
+    mpz_set_uint256(h.bns[0],finalhash);
+    
+    mpf_t rSpectralWeight, rproduct;
+    mpf_init(rSpectralWeight);
+    mpf_init(rproduct);
+
+    mpz_set_d(dSpectralWeight, rsw);
+    mpz_mul(dSpectralWeight, dSpectralWeight, h.bns[0]);
+    if (mpz_sgn(dSpectralWeight) <= 0) mpz_set_ui(dSpectralWeight,1);
+
+    mpf_set_z(rSpectralWeight,dSpectralWeight); //d2f
+    mpf_set_z(rproduct,h.product); //d2f
+mpf_div(rproduct, rproduct, rSpectralWeight);
+    mpz_set_f(h.product,rproduct);
+    if (mpz_sgn(h.product) <= 0) mpz_set_ui(h.product,1);
+
+    mpz_clear(dSpectralWeight);
+    mpf_clear(rSpectralWeight);
+    mpf_clear(rproduct);
     
 //    gmp_printf ("Prod: %Zx\n", h.product);
 //	      char *tmp = mpz_get_str(NULL,16,h.product);
 //    printf("\n%s\n", tmp);
     
-    int bytes = mpz_sizeinbase(h.product, 256);
-    char *bdata = (char*)malloc(bytes);
+    bytes = mpz_sizeinbase(h.product, 256);
+    bdata = (char*)malloc(bytes);
     mpz_export(bdata, NULL, -1, 1, 0, 0, h.product);
 //    mpz_export(h.data, NULL, -1, 1, 0, 0, h.product);
 
