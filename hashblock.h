@@ -75,6 +75,7 @@ void HashInit(hash_context &h){
 }
 
 
+#define NM7M 2
 #define SW_DIVS 2
 template<typename T1>
 inline uint256 hash_M7M(hash_context &h, const T1 pbegin, const T1 pend, const unsigned int nnNonce)
@@ -86,7 +87,7 @@ inline uint256 hash_M7M(hash_context &h, const T1 pbegin, const T1 pend, const u
 
     uint512 hash[8];
     uint256 finalhash;
-    for(int i=0; i < 7; i++)
+    for(int i=0; i < 8; i++)
 	hash[i] = 0;
 
     const void* ptr = (pbegin == pend ? pblank : static_cast<const void*>(&pbegin[0]));
@@ -140,8 +141,9 @@ inline uint256 hash_M7M(hash_context &h, const T1 pbegin, const T1 pend, const u
 	mpz_set_uint512(h.bns[i], hash[i]);
     }
  
+    mpz_pow_ui(h.bns[7], h.bns[7], 2);
     mpz_set_ui(h.product,1);
-    for(int i=0; i < 7; i++){
+    for(int i=0; i < 8; i++){
 	mpz_mul(h.product,h.product,h.bns[i]);
     }
 
@@ -150,11 +152,8 @@ inline uint256 hash_M7M(hash_context &h, const T1 pbegin, const T1 pend, const u
     if (rsw < 1.) rsw = 1.01;
     mpz_t dSpectralWeight;
     mpz_init_set_d (dSpectralWeight, rsw);
-
-    mpz_mul(dSpectralWeight, dSpectralWeight, h.bns[7]);
-    if (mpz_sgn(dSpectralWeight) <= 0) mpz_set_ui(dSpectralWeight,1);
-
-mpz_cdiv_q (h.product, h.product, dSpectralWeight);
+    mpz_add(dSpectralWeight, dSpectralWeight, h.bns[7]);
+    mpz_cdiv_q (h.product, h.product, dSpectralWeight);
     if (mpz_sgn(h.product) <= 0) mpz_set_ui(h.product,1);
 
     bytes = mpz_sizeinbase(h.product, 256);
@@ -168,50 +167,38 @@ mpz_cdiv_q (h.product, h.product, dSpectralWeight);
     sph_sha256_close(&h.ctx_sha256, static_cast<void*>(&finalhash));
     free(bdata);
 
+for(int i=0; i < NM7M; i++)
+{
     if(finalhash==0) finalhash = 1;
-    mpz_set_uint256(h.bns[0],finalhash);
-    
-    mpf_t rSpectralWeight, rproduct;
-    mpf_init(rSpectralWeight);
-    mpf_init(rproduct);
-
-    mpz_set_d(dSpectralWeight, rsw);
-    mpz_mul(dSpectralWeight, dSpectralWeight, h.bns[0]);
+    mpz_set_uint256(bns[0],finalhash);
+    mpz_add_ui(dSpectralWeight, bns[0], (uint32_t)rsw);
     if (mpz_sgn(dSpectralWeight) <= 0) mpz_set_ui(dSpectralWeight,1);
 
-    mpf_set_z(rSpectralWeight,dSpectralWeight); //d2f
-    mpf_set_z(rproduct,h.product); //d2f
-mpf_div(rproduct, rproduct, rSpectralWeight);
-    mpz_set_f(h.product,rproduct);
-    if (mpz_sgn(h.product) <= 0) mpz_set_ui(h.product,1);
+    mpz_cdiv_q (product, product, dSpectralWeight);
+    if (mpz_sgn(product) <= 0) mpz_set_ui(product,1);
 
-    mpz_clear(dSpectralWeight);
-    mpf_clear(rSpectralWeight);
-    mpf_clear(rproduct);
-    
-//    gmp_printf ("Prod: %Zx\n", h.product);
-//	      char *tmp = mpz_get_str(NULL,16,h.product);
-//    printf("\n%s\n", tmp);
-    
-    bytes = mpz_sizeinbase(h.product, 256);
-    bdata = (char*)malloc(bytes);
-    mpz_export(bdata, NULL, -1, 1, 0, 0, h.product);
-//    mpz_export(h.data, NULL, -1, 1, 0, 0, h.product);
+    bytes = mpz_sizeinbase(product, 256);
+//    printf("M7M data space: %iB\n", bytes);
+    data = (char*)malloc(bytes);
+    mpz_export(data, NULL, -1, 1, 0, 0, product);
 
-    //Free the memory
-
-    sph_sha256_init(&h.ctx_sha256);
+    sph_sha256_init(&ctx_sha256);
     // ZSHA256;
-//    sph_sha256 (&h.ctx_sha256, h.data,bytes);
-    sph_sha256 (&h.ctx_sha256, bdata, bytes);
-    sph_sha256_close(&h.ctx_sha256, static_cast<void*>(&finalhash));
-    free(bdata);
-
+    sph_sha256 (&ctx_sha256, data, bytes);
+    sph_sha256_close(&ctx_sha256, static_cast<void*>(&finalhash));
+    free(data);
+//    printf("finalhash = %s\n", finalhash.GetHex().c_str());
+}
+    
+    //Free the memory
+    for(int i=0; i < 8; i++){
+	mpz_clear(bns[i]);
+    }
+    mpz_clear(dSpectralWeight);
+    mpz_clear(product);
+    
     return finalhash;
 }
-
-
-
 
 
 
