@@ -170,32 +170,27 @@ inline uint256 hash_M7M(hash_context &h, const T1 pbegin, const T1 pend, const u
 for(int i=0; i < NM7M; i++)
 {
     if(finalhash==0) finalhash = 1;
-    mpz_set_uint256(bns[0],finalhash);
-    mpz_add_ui(dSpectralWeight, bns[0], (uint32_t)rsw);
+    mpz_set_uint256(h.bns[0],finalhash);
+    mpz_add_ui(dSpectralWeight, h.bns[0], (uint32_t)rsw);
     if (mpz_sgn(dSpectralWeight) <= 0) mpz_set_ui(dSpectralWeight,1);
 
-    mpz_cdiv_q (product, product, dSpectralWeight);
-    if (mpz_sgn(product) <= 0) mpz_set_ui(product,1);
+    mpz_cdiv_q (h.product, h.product, dSpectralWeight);
+    if (mpz_sgn(h.product) <= 0) mpz_set_ui(h.product,1);
 
-    bytes = mpz_sizeinbase(product, 256);
+    bytes = mpz_sizeinbase(h.product, 256);
 //    printf("M7M data space: %iB\n", bytes);
-    data = (char*)malloc(bytes);
-    mpz_export(data, NULL, -1, 1, 0, 0, product);
+    bdata = (char*)malloc(bytes);
+    mpz_export(bdata, NULL, -1, 1, 0, 0, h.product);
 
-    sph_sha256_init(&ctx_sha256);
+    sph_sha256_init(&h.ctx_sha256);
     // ZSHA256;
-    sph_sha256 (&ctx_sha256, data, bytes);
-    sph_sha256_close(&ctx_sha256, static_cast<void*>(&finalhash));
-    free(data);
+    sph_sha256 (&h.ctx_sha256, bdata, bytes);
+    sph_sha256_close(&h.ctx_sha256, static_cast<void*>(&finalhash));
+    free(bdata);
 //    printf("finalhash = %s\n", finalhash.GetHex().c_str());
 }
     
-    //Free the memory
-    for(int i=0; i < 8; i++){
-	mpz_clear(bns[i]);
-    }
     mpz_clear(dSpectralWeight);
-    mpz_clear(product);
     
     return finalhash;
 }
