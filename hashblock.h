@@ -4,6 +4,7 @@
 #define HASHBLOCK_H
 
 #include "uint256.h"
+#include "util.h"
 
 #include "hash/sph_sha2.h"
 #include "hash/sph_keccak.h" //sha3
@@ -75,15 +76,47 @@ void HashInit(hash_context &h){
 }
 
 
-#define NM7M 2
-#define SW_DIVS 2
+
+
+
+#define NM7M 4
+#define SW_DIVS 3
 template<typename T1>
+//inline uint256 hash_M7M(hash_context &h, CBlockHeader* tcb, const T1 pbegin, const T1 pend, const unsigned int nnNonce)
 inline uint256 hash_M7M(hash_context &h, const T1 pbegin, const T1 pend, const unsigned int nnNonce)
 {
     static unsigned char pblank[1];
     int bytes;
     char *bdata;
     int sw_Divs = SW_DIVS, nnNonce2 = (int)nnNonce/2;
+
+    
+int xdi=0;
+//    CBlockHeader tcb;
+
+
+    const void* ptr2 = (pbegin == pend ? pblank : static_cast<const void*>(&pbegin[0]));
+    size_t sz2 = (pend - pbegin) * sizeof(pbegin[0]);
+    
+//    memcpy(&tcb->nVersion, &ptr2, sz2);	// nversion
+//    memcpy(&tcb.nVersion, &tcdsd->nVersion, sz2);	// nversion
+
+//if(xdi) printf("\n\ntcb.nVersion = %i\n", tcb->nVersion);
+//if(xdi) printf("tcb.hashPrevBlock = %s\n", tcb->hashPrevBlock.GetHex().c_str());
+//if(xdi) printf("tcb.hashMerkleRoot = %s\n", tcb->hashMerkleRoot.GetHex().c_str());
+//if(xdi) printf("tcb.nTime = %i\n", tcb->nTime);
+//if(xdi) printf("tcb.nBits = %i\n", tcb->nBits);
+//if(xdi) printf("tcb.nNonce = %i\n\n", tcb->nNonce);
+
+//    header->nVersion = 0x00000004;
+//header->hashPrevBlock = uint256("0x67aa403245330c5d1c1c67eb680b1e3f982725a0eb800ffaf66dfde100000275");
+//header->hashMerkleRoot = uint256("0x7d5d0301cd03f128af3de03b33143a7d2fcef6e6cc42e33d2a864eb44960f362");
+//header->nTime = 0x53f7d74e;
+//header->nBits = 0x1e0b263d;
+//header->nNonce = 0x0;
+
+    
+    
 
     uint512 hash[8];
     uint256 finalhash;
@@ -92,47 +125,56 @@ inline uint256 hash_M7M(hash_context &h, const T1 pbegin, const T1 pend, const u
 
     const void* ptr = (pbegin == pend ? pblank : static_cast<const void*>(&pbegin[0]));
     size_t sz = (pend - pbegin) * sizeof(pbegin[0]);
+//    size_t sz = 80;
 
     sph_sha256_init(&h.ctx_sha256);
     // ZSHA256;
     sph_sha256 (&h.ctx_sha256, ptr, sz);
     sph_sha256_close(&h.ctx_sha256, static_cast<void*>(&hash[0]));
+if(xdi) printf("hash0 = %s\n", hash[0].GetHex().c_str());
     
     sph_sha512_init(&h.ctx_sha512);
     // ZSHA512;
     sph_sha512 (&h.ctx_sha512, ptr, sz);
     sph_sha512_close(&h.ctx_sha512, static_cast<void*>(&hash[1]));
+if(xdi) printf("hash1 = %s\n", hash[1].GetHex().c_str());
     
     sph_keccak512_init(&h.ctx_keccak);
     // ZKECCAK;
     sph_keccak512 (&h.ctx_keccak, ptr, sz);
     sph_keccak512_close(&h.ctx_keccak, static_cast<void*>(&hash[2]));
+if(xdi) printf("hash2 = %s\n", hash[2].GetHex().c_str());
 
     sph_whirlpool_init(&h.ctx_whirlpool);
     // ZWHIRLPOOL;
     sph_whirlpool (&h.ctx_whirlpool, ptr, sz);
     sph_whirlpool_close(&h.ctx_whirlpool, static_cast<void*>(&hash[3]));
+if(xdi) printf("hash3 = %s\n", hash[3].GetHex().c_str());
     
     sph_haval256_5_init(&h.ctx_haval);
     // ZHAVAL;
     sph_haval256_5 (&h.ctx_haval, ptr, sz);
     sph_haval256_5_close(&h.ctx_haval, static_cast<void*>(&hash[4]));
+if(xdi) printf("hash4 = %s\n", hash[4].GetHex().c_str());
 
     sph_tiger_init(&h.ctx_tiger);
     // ZTIGER;
     sph_tiger (&h.ctx_tiger, ptr, sz);
     sph_tiger_close(&h.ctx_tiger, static_cast<void*>(&hash[5]));
+if(xdi) printf("hash5 = %s\n", hash[5].GetHex().c_str());
 
     sph_ripemd160_init(&h.ctx_ripemd);
     // ZRIPEMD;
     sph_ripemd160 (&h.ctx_ripemd, ptr, sz);
     sph_ripemd160_close(&h.ctx_ripemd, static_cast<void*>(&hash[6]));
+if(xdi) printf("hash6 = %s\n", hash[6].GetHex().c_str());
 
     //printf("%s\n", hash[6].GetHex().c_str());
 
     hash[7] = hash[0];
     for(int i=1; i < 7; i++)
 	hash[7] += hash[i];
+if(xdi) printf("hash7 = %s\n", hash[7].GetHex().c_str());
 
     //Take care of zeros and load gmp
     for(int i=0; i < 8; i++){
@@ -146,15 +188,33 @@ inline uint256 hash_M7M(hash_context &h, const T1 pbegin, const T1 pend, const u
     for(int i=0; i < 8; i++){
 	mpz_mul(h.product,h.product,h.bns[i]);
     }
+    if(xdi) {
+      char *tmp = mpz_get_str(NULL,16,h.product);
+      printf("\nproduct: %s\n", tmp);
+    }
 
     double rsw;
     rsw = __spectral_weight_m_MOD_sw(&nnNonce2, &sw_Divs);
     if (rsw < 1.) rsw = 1.01;
     mpz_t dSpectralWeight;
     mpz_init_set_d (dSpectralWeight, rsw);
+    if(xdi) {
+    printf("%lf\n", rsw);
+      char *tmp = mpz_get_str(NULL,16,dSpectralWeight);
+      printf("\ndSpectralWeight (rsw): %s\n", tmp);
+    }
     mpz_add(dSpectralWeight, dSpectralWeight, h.bns[7]);
+    if (mpz_sgn(dSpectralWeight) <= 0) mpz_set_ui(dSpectralWeight,1);
+    if(xdi) {
+      char *tmp = mpz_get_str(NULL,16,dSpectralWeight);
+      printf("\ndSpectralWeight: %s\n", tmp);
+    }
     mpz_cdiv_q (h.product, h.product, dSpectralWeight);
     if (mpz_sgn(h.product) <= 0) mpz_set_ui(h.product,1);
+   if(xdi)  {
+      char *tmp = mpz_get_str(NULL,16,h.product);
+      printf("\nproduct: %s\n", tmp);
+    }
 
     bytes = mpz_sizeinbase(h.product, 256);
     bdata = (char*)malloc(bytes);
@@ -166,6 +226,7 @@ inline uint256 hash_M7M(hash_context &h, const T1 pbegin, const T1 pend, const u
     sph_sha256 (&h.ctx_sha256, bdata, bytes);
     sph_sha256_close(&h.ctx_sha256, static_cast<void*>(&finalhash));
     free(bdata);
+if(xdi) printf("finalhash = %s\n", finalhash.GetHex().c_str());
 
 for(int i=0; i < NM7M; i++)
 {
@@ -173,9 +234,17 @@ for(int i=0; i < NM7M; i++)
     mpz_set_uint256(h.bns[0],finalhash);
     mpz_add_ui(dSpectralWeight, h.bns[0], (uint32_t)rsw);
     if (mpz_sgn(dSpectralWeight) <= 0) mpz_set_ui(dSpectralWeight,1);
+    if(xdi) {
+      char *tmp = mpz_get_str(NULL,16,dSpectralWeight);
+      printf("\n\n\n%i, dSpectralWeight: %s\n", i, tmp);
+    }
 
     mpz_cdiv_q (h.product, h.product, dSpectralWeight);
     if (mpz_sgn(h.product) <= 0) mpz_set_ui(h.product,1);
+    if(xdi) {
+      char *tmp = mpz_get_str(NULL,16,h.product);
+      printf("\nproduct: %s\n", tmp);
+    }
 
     bytes = mpz_sizeinbase(h.product, 256);
 //    printf("M7M data space: %iB\n", bytes);
@@ -187,6 +256,7 @@ for(int i=0; i < NM7M; i++)
     sph_sha256 (&h.ctx_sha256, bdata, bytes);
     sph_sha256_close(&h.ctx_sha256, static_cast<void*>(&finalhash));
     free(bdata);
+    if(xdi) printf("finalhash = %s\n", finalhash.GetHex().c_str());
 //    printf("finalhash = %s\n", finalhash.GetHex().c_str());
 }
     
