@@ -627,21 +627,6 @@ bool scanhash(int thr_id, CBlockHeader *header, uint256 target, uint32_t max_non
 	int i;
 	uint64_t n = 0;
 
-	
-	
-if (0)
-{
-header->nVersion = 0x00000004;
-header->hashPrevBlock = uint256("0x67aa403245330c5d1c1c67eb680b1e3f982725a0eb800ffaf66dfde100000275");
-header->hashMerkleRoot = uint256("0x7d5d0301cd03f128af3de03b33143a7d2fcef6e6cc42e33d2a864eb44960f362");
-header->nTime = 0x53f7d74e;
-header->nBits = 0x1e0b263d;
-header->nNonce = 0x0;
-}	
-	
-	
-
-
 	uint64_t original_nonce=header->nNonce;
 	uint64_t stat_ctr = 0;
 
@@ -654,14 +639,6 @@ header->nNonce = 0x0;
 		header->nNonce = original_nonce + (((uint64_t)thr_id) << 24) + ((uint64_t)opt_extranonce << 32) + n++;
 		//printf("%d %lX\n", opt_extranonce, header->nNonce);
 		uint256 hash = hash_M7M(ctx,BEGIN(header->nVersion), END(header->nNonce), header->nNonce);
-//printf("\n\nhash prev: ...%s\n", header->hashPrevBlock.GetHex().c_str());
-if (0)
-{
-		printf("hash: ...%s\n", hash.GetHex().c_str());
-		exit(0);
-}
-
-		
 		
 		stat_ctr += 1;
 		bool found = hash < target;
