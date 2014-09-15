@@ -76,8 +76,8 @@ void HashInit(hash_context &h){
 }
 
 
-#define NM7M 4
-#define SW_DIVS 2
+#define NM7M 5
+//#define SW_DIVS 2
 template<typename T1>
 inline uint256 hash_M7M(hash_context &h, const T1 pbegin, const T1 pend, const unsigned int nnNonce)
 {
