@@ -77,14 +77,12 @@ void HashInit(hash_context &h){
 
 
 #define NM7M 5
-//#define SW_DIVS 2
 template<typename T1>
 inline uint256 hash_M7M(hash_context &h, const T1 pbegin, const T1 pend, const unsigned int nnNonce)
 {
     static unsigned char pblank[1];
     int bytes;
     unsigned int nnNonce1 = nnNonce/2;
-    int sw_Divs = SW_DIVS, nnNonce2 = nnNonce1;
 
     uint512 hash[7];
     uint256 finalhash;
