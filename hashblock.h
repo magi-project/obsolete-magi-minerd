@@ -184,8 +184,6 @@ for(int i=0; i < NM7M; i++)
 //    printf("finalhash = %s\n", finalhash.GetHex().c_str());
 }
     
-    mpz_clear(dSpectralWeight);
-    
     return finalhash;
 }
 
