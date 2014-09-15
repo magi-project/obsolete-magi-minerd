@@ -132,16 +132,13 @@ inline uint256 hash_M7M(hash_context &h, const T1 pbegin, const T1 pend, const u
 
     //printf("%s\n", hash[6].GetHex().c_str());
 
-    mpz_t h.bns[8];
     //Take care of zeros and load gmp
     for(int i=0; i < 7; i++){
 	if(hash[i]==0)
 	    hash[i] = 1;
-	mpz_init(h.bns[i]);
 	mpz_set_uint512(h.bns[i],hash[i]);
     }
  
-    mpz_init(h.bns[7]);
     mpz_set_ui(h.bns[7],0);
     for(int i=0; i < 7; i++)
 	mpz_add(h.bns[7], h.bns[7], h.bns[i]);
