@@ -76,23 +76,19 @@ void HashInit(hash_context &h){
 }
 
 
-
-
-
 #define NM7M 4
-#define SW_DIVS 3
+#define SW_DIVS 2
 template<typename T1>
-//inline uint256 hash_M7M(hash_context &h, CBlockHeader* tcb, const T1 pbegin, const T1 pend, const unsigned int nnNonce)
 inline uint256 hash_M7M(hash_context &h, const T1 pbegin, const T1 pend, const unsigned int nnNonce)
 {
     static unsigned char pblank[1];
     int bytes;
-    char *bdata;
-    int sw_Divs = SW_DIVS, nnNonce2 = (int)nnNonce/2;
+    unsigned int nnNonce1 = nnNonce/2;
+    int sw_Divs = SW_DIVS, nnNonce2 = nnNonce1;
 
-    uint512 hash[8];
+    uint512 hash[7];
     uint256 finalhash;
-    for(int i=0; i < 8; i++)
+    for(int i=0; i < 7; i++)
 	hash[i] = 0;
 
     const void* ptr = (pbegin == pend ? pblank : static_cast<const void*>(&pbegin[0]));
@@ -136,17 +132,20 @@ inline uint256 hash_M7M(hash_context &h, const T1 pbegin, const T1 pend, const u
 
     //printf("%s\n", hash[6].GetHex().c_str());
 
-    hash[7] = hash[0];
-    for(int i=1; i < 7; i++)
-	hash[7] += hash[i];
-
+    mpz_t h.bns[8];
     //Take care of zeros and load gmp
-    for(int i=0; i < 8; i++){
+    for(int i=0; i < 7; i++){
 	if(hash[i]==0)
 	    hash[i] = 1;
-	mpz_set_uint512(h.bns[i], hash[i]);
+	mpz_init(h.bns[i]);
+	mpz_set_uint512(h.bns[i],hash[i]);
     }
  
+    mpz_init(h.bns[7]);
+    mpz_set_ui(h.bns[7],0);
+    for(int i=0; i < 7; i++)
+	mpz_add(h.bns[7], h.bns[7], h.bns[i]);
+
     mpz_pow_ui(h.bns[7], h.bns[7], 2);
     mpz_set_ui(h.product,1);
     for(int i=0; i < 8; i++){
@@ -164,15 +163,15 @@ inline uint256 hash_M7M(hash_context &h, const T1 pbegin, const T1 pend, const u
     if (mpz_sgn(h.product) <= 0) mpz_set_ui(h.product,1);
 
     bytes = mpz_sizeinbase(h.product, 256);
-    bdata = (char*)malloc(bytes);
-    mpz_export(bdata, NULL, -1, 1, 0, 0, h.product);
+    char *adata = (char*)malloc(bytes);
+    mpz_export(adata, NULL, -1, 1, 0, 0, h.product);
 
     sph_sha256_init(&h.ctx_sha256);
     // ZSHA256;
 //    sph_sha256 (&h.ctx_sha256, h.data,bytes);
-    sph_sha256 (&h.ctx_sha256, bdata, bytes);
+    sph_sha256 (&h.ctx_sha256, adata, bytes);
     sph_sha256_close(&h.ctx_sha256, static_cast<void*>(&finalhash));
-    free(bdata);
+    free(adata);
 
 for(int i=0; i < NM7M; i++)
 {
@@ -186,7 +185,7 @@ for(int i=0; i < NM7M; i++)
 
     bytes = mpz_sizeinbase(h.product, 256);
 //    printf("M7M data space: %iB\n", bytes);
-    bdata = (char*)malloc(bytes);
+    char *bdata = (char*)malloc(bytes);
     mpz_export(bdata, NULL, -1, 1, 0, 0, h.product);
 
     sph_sha256_init(&h.ctx_sha256);
