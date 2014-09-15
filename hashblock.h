@@ -141,7 +141,7 @@ inline uint256 hash_M7M(hash_context &h, const T1 pbegin, const T1 pend, const u
     for(int i=0; i < 7; i++)
 	mpz_add(h.bns[7], h.bns[7], h.bns[i]);
 
-    mpz_pow_ui(h.bns[7], h.bns[7], 2);
+//    mpz_pow_ui(h.bns[7], h.bns[7], 2);
     mpz_set_ui(h.product,1);
     for(int i=0; i < 8; i++){
 	mpz_mul(h.product,h.product,h.bns[i]);
