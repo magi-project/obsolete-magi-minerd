@@ -148,16 +148,7 @@ inline uint256 hash_M7M(hash_context &h, const T1 pbegin, const T1 pend, const u
     for(int i=0; i < 8; i++){
 	mpz_mul(h.product,h.product,h.bns[i]);
     }
-
-    double rsw;
-    rsw = __spectral_weight_m_MOD_sw(&nnNonce2, &sw_Divs);
-    if (rsw < 1.) rsw = 1.01;
-    mpz_t dSpectralWeight;
-    mpz_init_set_d (dSpectralWeight, rsw);
-    mpz_add(dSpectralWeight, dSpectralWeight, h.bns[7]);
-    if (mpz_sgn(dSpectralWeight) <= 0) mpz_set_ui(dSpectralWeight,1);
-    mpz_cdiv_q (h.product, h.product, dSpectralWeight);
-    if (mpz_sgn(h.product) <= 0) mpz_set_ui(h.product,1);
+    mpz_pow_ui(h.product, h.product, 2);
 
     bytes = mpz_sizeinbase(h.product, 256);
     char *adata = (char*)malloc(bytes);
@@ -174,10 +165,10 @@ for(int i=0; i < NM7M; i++)
 {
     if(finalhash==0) finalhash = 1;
     mpz_set_uint256(h.bns[0],finalhash);
-    mpz_add_ui(dSpectralWeight, h.bns[0], (uint32_t)rsw);
-    if (mpz_sgn(dSpectralWeight) <= 0) mpz_set_ui(dSpectralWeight,1);
+    mpz_add(h.bns[7], h.bns[7], h.bns[0]);
 
-    mpz_cdiv_q (h.product, h.product, dSpectralWeight);
+    mpz_mul(h.product, h.product, h.bns[7]);
+    mpz_cdiv_q (h.product, h.product, h.bns[0]);
     if (mpz_sgn(h.product) <= 0) mpz_set_ui(h.product,1);
 
     bytes = mpz_sizeinbase(h.product, 256);
