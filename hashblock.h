@@ -23,10 +23,6 @@
 #define GLOBAL extern
 #endif
 
-extern "C"{
-    extern double __spectral_weight_m_MOD_sw(int *, int *);
-}
-
 GLOBAL sph_sha256_context     z_sha256;
 GLOBAL sph_sha512_context     z_sha512;
 GLOBAL sph_keccak512_context  z_keccak;
