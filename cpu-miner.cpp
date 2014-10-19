@@ -621,7 +621,8 @@ bool scanhash(int thr_id, CBlockHeader *header, uint256 target, uint32_t max_non
 	while (1) {
 		header->nNonce = original_nonce + (((uint64_t)thr_id) << 24) + ((uint64_t)opt_extranonce << 32) + n++;
 		//printf("%d %lX\n", opt_extranonce, header->nNonce);
-		uint256 hash = hash_M7M(ctx,BEGIN(header->nVersion), END(header->nNonce), header->nNonce);
+//		uint256 hash = hash_M7M(ctx,BEGIN(header->nVersion), END(header->nNonce), header->nNonce);
+		uint256 hash = hash_M7M_v2(BEGIN(header->nVersion), END(header->nNonce), header->nNonce);
 		
 		stat_ctr += 1;
 		bool found = hash < target;
